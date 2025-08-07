@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2>Edit Profile</h2>
+
+  <!-- Change Password link -->
+  <div class="mb-3">
+    <a href="{% url 'password_change' %}" class="btn btn-spin">Change Password</a>
+  </div>
+
+  <!-- Edit Profile Form -->
+  <form method="post" enctype="multipart/form-data" class="mt-3">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+    <div class="mt-4">
+      <button type="submit" class="btn btn-spin">Save Changes</button>
+      <a href="{% url 'profile' user.username %}" class="btn btn-spin">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

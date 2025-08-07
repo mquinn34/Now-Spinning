@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container text-center mt-5">
+  <h1 class="display-3 fw-bold mb-4" style="font-family: 'Georgia', serif;">Now Spinning</h1>
+  <p class="lead mb-5" style="font-family: 'Courier New', monospace;">
+    A cozy corner of the internet for vinyl lovers. <br>
+    Share what’s spinning. Discover your next favorite record.
+  </p>
+</div>
+
+<!-- How It Works -->
+<div class="container mt-5">
+  <h3 class="vintage-font text-center mb-4">How It Works</h3>
+  <div class="row text-muted">
+    <div class="col-md-4 text-center mb-4">
+      <h5>Share Your Spins</h5>
+      <p>Post what you're currently listening to. Include the album name, artist, and even your own photo or caption.</p>
+    </div>
+    <div class="col-md-4 text-center mb-4">
+      <h5>Add Album Art</h5>
+      <p>Use the Discogs API to pull album cover images automatically and upload your own custom spin photo.</p>
+    </div>
+    <div class="col-md-4 text-center mb-4">
+      <h5>Build Your Collection</h5>
+      <p>Each spin stays on your profile, so over time, you'll create a visual log of your vinyl listening journey.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Image Preview -->
+<div class="container mt-5 text-center">
+  <h4 class="vintage-font mb-3">🎧 A Peek at a Spin Post</h4>
+  <img src="{% static 'images/spin-example.jpg' %}" alt="Example Spin Post"
+       class="img-fluid rounded shadow border" style="max-width: 700px;">
+</div>
+
+<!-- Final CTA Section -->
+<div class="container text-center mt-5 mb-5">
+  <h3 class="vintage-font mb-3">Ready to Drop the Needle?</h3>
+  <p class="lead text-muted mb-4">Start building your personal vinyl feed today. Share your current spins and revisit your listening history anytime.</p>
+
+  {% if not user.is_authenticated %}
+    <a href="{% url 'register' %}" class="btn btn-spin btn-lg px-4">Create Your Account</a>
+  {% else %}
+    <a href="{% url 'create_spin' %}" class="btn btn-spin btn-lg px-4">+ Share Your Next Spin</a>
+  {% endif %}
+</div>
+
+{% endblock %}

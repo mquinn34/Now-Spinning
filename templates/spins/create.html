@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="vintage-font mb-4">Create a Spin</h2>
+
+  <form method="POST" enctype="multipart/form-data" id="spinForm">
+    {% csrf_token %}
+
+    <!-- Search Artist -->
+    <div class="mb-4 position-relative">
+      <label for="artistInput" class="form-label">Search Artist</label>
+      <input type="text" class="form-control" id="artistInput" placeholder="Start typing an artist...">
+      <ul class="list-group position-absolute w-100 mt-1 z-3" id="artistResults"></ul>
+    </div>
+
+    <!-- Album Dropdown -->
+    <div class="mb-4 d-none" id="albumSearchSection">
+      <label for="albumInput" class="form-label">Select Album</label>
+      <!-- Dropdown via JavaScript -->
+    </div>
+
+    <!-- Preview -->
+    <div class="mb-4 d-none" id="previewSection">
+      <h5>Preview:</h5>
+      <div class="d-flex align-items-start gap-3">
+        <img id="albumCoverPreview" class="img-thumbnail" style="max-height: 160px;">
+        <div>
+          <h6 id="previewArtist" class="mb-1"></h6>
+          <p id="previewAlbum" class="text-muted mb-0"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden Fields -->
+    <input type="hidden" name="artist" id="hiddenArtist">
+    <input type="hidden" name="album" id="hiddenAlbum">
+    <input type="hidden" name="album_cover_url" id="hiddenCoverUrl">
+
+    <!-- Caption -->
+    <div class="mb-3">
+      <label for="caption" class="form-label">Caption (optional)</label>
+      <textarea class="form-control" name="caption" rows="3"></textarea>
+    </div>
+
+    <!-- Photo -->
+    <div class="mb-3">
+      <label for="image" class="form-label">Your Record Photo (optional)</label>
+      <input type="file" class="form-control" name="image">
+    </div>
+
+    <button type="submit" class="btn btn-spin">Spin It</button>
+  </form>
+</div>
+
+<style>
+  #artistResults {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const discogsToken = "{{ DISCOGS_API_TOKEN }}";
+
+  const artistInput = document.getElementById('artistInput');
+  const artistResults = document.getElementById('artistResults');
+  const albumSearchSection = document.getElementById('albumSearchSection');
+
+  const previewSection = document.getElementById('previewSection');
+  const hiddenArtist = document.getElementById('hiddenArtist');
+  const hiddenAlbum = document.getElementById('hiddenAlbum');
+  const hiddenCoverUrl = document.getElementById('hiddenCoverUrl');
+  const previewArtist = document.getElementById('previewArtist');
+  const previewAlbum = document.getElementById('previewAlbum');
+  const albumCoverPreview = document.getElementById('albumCoverPreview');
+
+  let selectedArtist = null;
+  let debounceTimeout = null;
+
+  function debounce(func, delay) {
+    clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(func, delay);
+  }
+
+  // Search Artist Autocomplete
+  artistInput.addEventListener('input', () => {
+    debounce(() => {
+      const query = artistInput.value.trim();
+      artistResults.innerHTML = '';
+      albumSearchSection.classList.add('d-none');
+      previewSection.classList.add('d-none');
+      selectedArtist = null;
+
+      if (query.length < 2) return;
+
+      fetch(`https://api.discogs.com/database/search?q=${encodeURIComponent(query)}&type=artist&token=${discogsToken}`)
+        .then(res => res.json())
+        .then(data => {
+          data.results.slice(0, 6).forEach(artist => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action';
+            li.textContent = artist.title;
+            li.onclick = () => {
+              selectedArtist = artist;
+              artistInput.value = artist.title;
+              hiddenArtist.value = artist.title;
+              artistResults.innerHTML = '';
+              fetchAlbumsForArtist(artist.title);
+            };
+            artistResults.appendChild(li);
+          });
+        });
+    }, 300);
+  });
+
+  // Fetch Albums and Create Dropdown
+  function fetchAlbumsForArtist(artistName) {
+    fetch(`https://api.discogs.com/database/search?artist=${encodeURIComponent(artistName)}&type=release&token=${discogsToken}`)
+      .then(res => res.json())
+      .then(data => {
+        const seen = new Set();
+        const select = document.createElement('select');
+        select.className = 'form-select';
+        select.id = 'albumInput';
+        select.innerHTML = '<option value="">Select an album...</option>';
+
+        let count = 0;
+        for (let album of data.results) {
+          if (!seen.has(album.title) && count < 75) {
+            seen.add(album.title);
+            count++;
+
+            const option = document.createElement('option');
+            option.value = album.title;
+            option.textContent = album.title;
+            option.setAttribute('data-cover', album.cover_image || '');
+            select.appendChild(option);
+          }
+        }
+
+        albumSearchSection.innerHTML = `
+          <label for="albumInput" class="form-label">Select Album</label>
+        `;
+        albumSearchSection.appendChild(select);
+        albumSearchSection.classList.remove('d-none');
+
+        // Album select handler
+        select.addEventListener('change', () => {
+          const selectedOption = select.options[select.selectedIndex];
+          const albumTitle = selectedOption.value;
+          const cover = selectedOption.getAttribute('data-cover');
+
+          if (albumTitle) {
+            hiddenAlbum.value = albumTitle;
+            hiddenCoverUrl.value = cover;
+            previewArtist.textContent = selectedArtist.title;
+            previewAlbum.textContent = albumTitle;
+            albumCoverPreview.src = cover;
+            previewSection.classList.remove('d-none');
+          } else {
+            previewSection.classList.add('d-none');
+          }
+        });
+      });
+  }
+</script>
+{% endblock %}
