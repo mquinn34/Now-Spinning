@@ -126,7 +126,8 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DISCOGS_API_TOKEN = os.environ.get('DISCOGS_API_TOKEN')
-DISCOGS_USER_AGENT = os.environ.get ("NowSpinning/1.0 (contact: quinnm34@gmail.com)")
+DISCOGS_USER_AGENT = os.environ.get("DISCOGS_USER_AGENT", "NowSpinning/1.0 (contact: quinnm34@gmail.com)")
+
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 AUTHENTICATION_BACKENDS = [
