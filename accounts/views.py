@@ -14,17 +14,22 @@ from spins.models import Spin
 CustomUser = get_user_model()
 
 # Registration View
+
+
 def register_view(request):
-    if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
+    if request.method == "POST":
+        form = CustomUserCreationForm(request.POST, request.FILES)  # include FILES
         if form.is_valid():
-            user = form.save()
+            try:
+                user = form.save()
+            except IntegrityError as e:
+                messages.error(request, "There was an account error. Try a different username or email.")
+                return render(request, "accounts/register.html", {"form": form})
             login(request, user)
-            return redirect('profile', username=user.username)
+            return redirect("profile", username=user.username)
     else:
         form = CustomUserCreationForm()
-    return render(request, 'accounts/register.html', {'form': form})
-
+    return render(request, "accounts/register.html", {"form": form})
 
 # Profile View 
 class ProfileView(LoginRequiredMixin, DetailView):
