@@ -59,7 +59,6 @@
     max-height: 200px;
     overflow-y: auto;
   }
-  
   .list-group-item.active-selection {
     background-color: var(--bs-primary);
     color: #fff;
@@ -69,6 +68,14 @@
 
 {% block extra_scripts %}
 <script>
+  
+  const ARTISTS_URL = "{% url 'discogs_search_artists' %}";
+ 
+  const RELEASES_URL_TEMPLATE = "{% url 'discogs_artist_releases' artist_id=0 %}"; 
+  function releasesUrl(artistId) {
+    return RELEASES_URL_TEMPLATE.replace(/\/0\/releases$/, `/${artistId}/releases`);
+  }
+
   const artistInput = document.getElementById('artistInput');
   const artistResults = document.getElementById('artistResults');
   const albumSearchSection = document.getElementById('albumSearchSection');
@@ -86,7 +93,6 @@
   let currentArtistController = null;
   let currentReleaseController = null;
 
-  // simple debounce
   function debounce(fn, delay) {
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(fn, delay);
@@ -98,10 +104,9 @@
     }
   }
 
-  // Render artist suggestions
   function renderArtistResults(items) {
     artistResults.innerHTML = '';
-    items.forEach((artist, idx) => {
+    items.forEach((artist) => {
       const li = document.createElement('li');
       li.className = 'list-group-item list-group-item-action';
       li.textContent = artist.title;
@@ -118,21 +123,22 @@
     cancelController(currentArtistController);
     currentArtistController = new AbortController();
     try {
-      const res = await fetch(`/api/discogs/artists?q=${encodeURIComponent(query)}`, {
+      const res = await fetch(`${ARTISTS_URL}?q=${encodeURIComponent(query)}`, {
         signal: currentArtistController.signal
       });
       if (!res.ok) {
+        console.error('Artists fetch failed', res.status);
         artistResults.innerHTML = '';
         return;
       }
       const data = await res.json();
       renderArtistResults((data && data.results) || []);
-    } catch (_) {
+    } catch (err) {
       // aborted or network error
+      console.error('Artists fetch error', err);
     }
   }
 
-  // Choose an artist from the suggestions
   function chooseArtist(artist) {
     selectedArtist = artist;
     artistInput.value = artist.title;
@@ -142,7 +148,6 @@
     fetchAlbumsForArtist(artist.id, artist.title);
   }
 
-  // Key navigation for suggestions
   let activeIndex = -1;
   artistInput.addEventListener('keydown', (e) => {
     const items = Array.from(artistResults.querySelectorAll('.list-group-item'));
@@ -150,13 +155,13 @@
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      activeIndex = (activeIndex + 1) % items.length;
+      activeIndex = (activeIndex + 1) < items.length ? activeIndex + 1 : 0;
       items.forEach(el => el.classList.remove('active-selection'));
       items[activeIndex].classList.add('active-selection');
       items[activeIndex].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      activeIndex = (activeIndex - 1) >= 0 ? activeIndex - 1 : items.length - 1;
       items.forEach(el => el.classList.remove('active-selection'));
       items[activeIndex].classList.add('active-selection');
       items[activeIndex].scrollIntoView({ block: 'nearest' });
@@ -172,7 +177,6 @@
     }
   });
 
-  // Search Artist Autocomplete via backend
   artistInput.addEventListener('input', () => {
     debounce(() => {
       const query = artistInput.value.trim();
@@ -190,16 +194,16 @@
     }, 300);
   });
 
-  // Fetch Albums by artist id and create dropdown
   async function fetchAlbumsForArtist(artistId, artistTitle) {
     cancelController(currentReleaseController);
     currentReleaseController = new AbortController();
 
     try {
-      const res = await fetch(`/api/discogs/artist/${artistId}/releases`, {
+      const res = await fetch(releasesUrl(artistId), {
         signal: currentReleaseController.signal
       });
       if (!res.ok) {
+        console.error('Releases fetch failed', res.status);
         albumSearchSection.classList.add('d-none');
         return;
       }
@@ -241,8 +245,8 @@
           previewSection.classList.add('d-none');
         }
       });
-    } catch (_) {
-      // aborted or network error
+    } catch (err) {
+      console.error('Releases fetch error', err);
     }
   }
 </script>
