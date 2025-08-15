@@ -8,37 +8,52 @@ from django.views.generic.edit import UpdateView
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import IntegrityError  # <-- import this
+from django.db import IntegrityError  
 
 from .forms import CustomUserCreationForm, CustomUserChangeForm
 from .models import CustomUser
 from spins.models import Spin
 
-User = get_user_model()
+import logging
+
+logger = logging.getLogger(__name__)
 
 def register_view(request):
     if request.method == "POST":
         form = CustomUserCreationForm(request.POST, request.FILES)
         if form.is_valid():
+            # 1) save user (log if anything goes wrong)
             try:
                 user = form.save()
-                # authenticate so Django knows the backend
+            except Exception:
+                logger.exception("Register: save() failed")
+                messages.error(request, "We couldn't create your account. Please try a different username/email.")
+                return render(request, "accounts/register.html", {"form": form})
+
+            # 2) authenticate + login (attach backend if needed)
+            try:
                 raw_password = form.cleaned_data.get("password1")
                 auth_user = authenticate(request, username=user.username, password=raw_password)
-                if auth_user is not None:
-                    login(request, auth_user)
-                else:
-                    # fallback to default backend if needed
+                if auth_user is None:
                     user.backend = "django.contrib.auth.backends.ModelBackend"
-                    login(request, user)
-                return redirect("profile", username=user.username)
-            except IntegrityError:
-                messages.error(request, "There was an account error. Try a different username or email.")
-        # if invalid, fall through and re-render with errors
+                    auth_user = user
+                login(request, auth_user)
+            except Exception:
+                logger.exception("Register: login() failed")
+                messages.warning(request, "Account created—please log in.")
+                return redirect("login")
+
+            # 3) redirect to profile (fallback to home if reverse fails)
+            try:
+                return redirect("profile", username=user.username)  # change to "accounts:profile" if namespaced
+            except Exception:
+                logger.exception("Register: redirect to profile failed")
+                return redirect("/")
+        # invalid form: re-render with errors
+        return render(request, "accounts/register.html", {"form": form})
     else:
         form = CustomUserCreationForm()
     return render(request, "accounts/register.html", {"form": form})
-
 
 class ProfileView(LoginRequiredMixin, DetailView):
     model = CustomUser
